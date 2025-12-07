@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import auth from '@/services/auth'
+import Landing from '@/pages/Landing.vue'
 import Login from '@/pages/auth/Login.vue'
 import Register from '@/pages/auth/Register.vue'
 import UsersIndex from '@/pages/users/UsersIndex.vue'
@@ -7,6 +8,11 @@ import UserShow from '@/pages/users/UserShow.vue'
 import Dashboard from '@/pages/dashboard/Dashboard.vue'
 
 const routes = [
+    {
+        path: '/',
+        name: 'landing',
+        component: Landing
+    },
   {
         path: '/admin',
         name: 'dashboard',

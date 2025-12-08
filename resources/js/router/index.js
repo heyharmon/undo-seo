@@ -6,6 +6,10 @@ import Register from '@/pages/auth/Register.vue'
 import UsersIndex from '@/pages/users/UsersIndex.vue'
 import UserShow from '@/pages/users/UserShow.vue'
 import Dashboard from '@/pages/dashboard/Dashboard.vue'
+import ProjectsIndex from '@/pages/projects/ProjectsIndex.vue'
+import ProjectCreate from '@/pages/projects/ProjectCreate.vue'
+import ProjectShow from '@/pages/projects/ProjectShow.vue'
+import ProjectEdit from '@/pages/projects/ProjectEdit.vue'
 
 const routes = [
     {
@@ -13,11 +17,11 @@ const routes = [
         name: 'landing',
         component: Landing
     },
-  {
+    {
         path: '/admin',
         name: 'dashboard',
         component: Dashboard,
-        meta: { requiresAuth: true, roles: ['dashboard'] }
+        meta: { requiresAuth: true, roles: ['admin'] }
     },
     {
         path: '/login',
@@ -30,6 +34,30 @@ const routes = [
         name: 'register',
         component: Register,
         meta: { guest: true }
+    },
+    {
+        path: '/projects',
+        name: 'projects.index',
+        component: ProjectsIndex,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/projects/create',
+        name: 'projects.create',
+        component: ProjectCreate,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/projects/:id',
+        name: 'projects.show',
+        component: ProjectShow,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/projects/:id/edit',
+        name: 'projects.edit',
+        component: ProjectEdit,
+        meta: { requiresAuth: true }
     },
     {
         path: '/users',
@@ -63,7 +91,7 @@ router.beforeEach((to, from, next) => {
         }
     } else if (to.matched.some((record) => record.meta.guest)) {
         if (token) {
-            next({ name: 'admin' })
+            next({ name: 'projects.index' })
         } else {
             next()
         }

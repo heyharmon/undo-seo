@@ -19,7 +19,7 @@ const login = async () => {
             password: password.value
         })
 
-        router.push('/admin')
+        router.push('/projects')
     } catch (err) {
         error.value = err.message || 'Login failed. Please check your credentials.'
     } finally {

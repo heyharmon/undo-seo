@@ -11,7 +11,7 @@ const isAuthenticated = computed(() => auth.isAuthenticated())
     <nav class="sticky top-0 z-40 border-b border-neutral-200 bg-white/90 backdrop-blur">
         <div class="mx-auto flex h-16 w-full items-center justify-between px-4 sm:px-6 lg:px-8">
             <div class="flex flex-1 items-center">
-                <router-link to="/" class="text-lg font-semibold text-neutral-900">Generator Builder</router-link>
+                <router-link to="/" class="text-lg font-semibold text-neutral-900">Undo SEO</router-link>
             </div>
 
             <div class="flex items-center gap-2">

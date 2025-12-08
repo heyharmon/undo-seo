@@ -39,7 +39,7 @@ const register = async () => {
 
         await auth.register(registrationData)
 
-        router.push('/admin')
+        router.push('/projects')
     } catch (err) {
         error.value = err.message || 'Registration failed. Please try again.'
     } finally {

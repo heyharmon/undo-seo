@@ -6,6 +6,7 @@ This directory contains high-level overviews of the main domains in the Laravel/
 
 -   **agents** – Do's and dont's for ai agents
 -   **auth** – User authentication and registration
+-   **dataforseo** – DataForSEO API integration for keyword research
 -   **projects** – Project management for keyword research
 -   **ui** – UI design guidelines and visual language
 -   **users** – User management

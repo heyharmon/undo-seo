@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'dataforseo' => [
+        'login' => env('DATAFORSEO_LOGIN'),
+        'password' => env('DATAFORSEO_PASSWORD'),
+        'base_url' => 'https://api.dataforseo.com/v3',
+    ],
+
 ];

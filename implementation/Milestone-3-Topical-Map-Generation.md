@@ -10,16 +10,15 @@ Build the core topical map generation feature. Users enter a seed keyword and th
 
 # Prerequisites
 
-- Milestone 2 complete (DataForSEO service class exists)
+- Milestone 2 complete (DataForSEO service class exists with all methods)
 - DataForSEO account with API credentials
 
 # Deliverables
 
-1. Updated data model with keyword hierarchy (parent/child relationships)
-2. Topical map generation using DataForSEO Related Keywords endpoint
-3. Optional keyword suggestions integration (toggle during generation or fetch post-generation)
-4. API endpoints for generating, viewing, and expanding topical maps
-5. Frontend UI for seed input, cluster display, cluster expansion, and suggestion fetching
+1. Keywords table migration with parent/child hierarchy
+2. Keyword and Project model relationships
+3. API endpoints for generating, viewing, and expanding topical maps
+4. Frontend UI for seed input, cluster display, cluster expansion, and suggestion fetching
 
 # Core Concepts
 
@@ -43,11 +42,11 @@ Example for seed "keto diet":
 
 # Technical Requirements
 
-## 1. Data Model Updates
+## 1. Data Model
 
 ### Keywords Table Migration
 
-Create or update the keywords table with parent/child support:
+Create the keywords table with parent/child support:
 
 ```
 keywords
@@ -70,46 +69,60 @@ keywords
 
 ### Keyword Model
 
-Update the Keyword model with relationships:
-
 ```php
-// Parent relationship
-public function parent()
+class Keyword extends Model
 {
-    return $this->belongsTo(Keyword::class, 'parent_id');
-}
+    protected $fillable = [
+        'project_id',
+        'parent_id',
+        'keyword',
+        'search_volume',
+        'difficulty',
+        'is_seed',
+    ];
 
-// Children relationship (cluster members)
-public function children()
-{
-    return $this->hasMany(Keyword::class, 'parent_id');
-}
+    protected $casts = [
+        'is_seed' => 'boolean',
+    ];
 
-// Project relationship
-public function project()
-{
-    return $this->belongsTo(Project::class);
-}
+    // Parent relationship
+    public function parent()
+    {
+        return $this->belongsTo(Keyword::class, 'parent_id');
+    }
 
-// Check if this is a cluster parent
-public function isClusterParent(): bool
-{
-    return $this->parent_id === null && !$this->is_seed;
-}
+    // Children relationship (cluster members)
+    public function children()
+    {
+        return $this->hasMany(Keyword::class, 'parent_id');
+    }
 
-// Difficulty label accessor
-public function getDifficultyLabelAttribute(): ?string
-{
-    if ($this->difficulty === null) return null;
-    if ($this->difficulty < 30) return 'Easy';
-    if ($this->difficulty < 60) return 'Doable';
-    return 'Hard';
+    // Project relationship
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    // Check if this is a cluster parent
+    public function isClusterParent(): bool
+    {
+        return $this->parent_id === null && !$this->is_seed;
+    }
+
+    // Difficulty label accessor (thresholds defined in Milestone 2)
+    public function getDifficultyLabelAttribute(): ?string
+    {
+        if ($this->difficulty === null) return null;
+        if ($this->difficulty < 30) return 'Easy';
+        if ($this->difficulty < 60) return 'Doable';
+        return 'Hard';
+    }
 }
 ```
 
-### Project Model
+### Project Model Updates
 
-Add keywords relationship:
+Add keywords relationships to the Project model:
 
 ```php
 public function keywords()
@@ -132,69 +145,7 @@ public function seedKeyword()
 }
 ```
 
-## 2. DataForSEO Integration
-
-### Endpoints to Use
-
-**Primary: Related Keywords (always used)**
-- Endpoint: `POST /v3/dataforseo_labs/google/related_keywords/live`
-- Purpose: Get semantically related keywords with connection strength data
-- Returns: Related keywords with search metrics and relationship data for grouping
-- This is the core endpoint for topical map generation
-
-**Optional: Keyword Suggestions (user-enabled)**
-- Endpoint: `POST /v3/dataforseo_labs/google/keyword_suggestions/live`
-- Purpose: Get autocomplete-style suggestions for long-tail variations
-- Use: Supplements related keywords to catch variations the primary endpoint misses
-- **Not called by default** — user must explicitly enable this option
-
-### DataForSEO Service Methods
-
-Add methods to the existing DataForSeoService:
-
-```php
-/**
- * Get related keywords for clustering (primary method)
- */
-public function getRelatedKeywords(string $keyword, int $limit = 100): array
-
-/**
- * Get keyword suggestions for long-tail variations (optional)
- */
-public function getKeywordSuggestions(string $keyword, int $limit = 50): array
-
-/**
- * Generate a topical map from a seed keyword
- * @param bool $includeSuggestions - Whether to also fetch keyword suggestions
- */
-public function generateTopicalMap(string $seedKeyword, bool $includeSuggestions = false): array
-```
-
-### Clustering Logic
-
-The `generateTopicalMap` method should:
-
-1. Call the Related Keywords endpoint with the seed (always)
-2. If `includeSuggestions` is true, also call the Keyword Suggestions endpoint
-3. Combine and deduplicate results (if suggestions were included)
-4. Group keywords into clusters based on DataForSEO's connection data
-5. Return structured data with clusters and their children
-
-**Clustering approach:**
-- Use DataForSEO's `connection_strength` or semantic grouping data from the related keywords response
-- Keywords with high connection strength to each other form a cluster
-- The keyword with the highest search volume in each group becomes the cluster parent
-
-### Post-Generation Suggestions
-
-After a topical map is created, users can fetch additional suggestions:
-
-1. **Top-level suggestions** — Run keyword suggestions for the seed keyword and merge into existing clusters
-2. **Cluster-level suggestions** — Run keyword suggestions for a specific cluster parent to expand that cluster
-
-This allows users to start with a focused map (related keywords only) and expand it incrementally.
-
-## 3. API Endpoints
+## 2. API Endpoints
 
 | Method | URI | Purpose |
 |--------|-----|---------|
@@ -205,6 +156,8 @@ This allows users to start with a focused map (related keywords only) and expand
 | POST | /api/projects/{id}/clusters/{clusterId}/suggestions | Fetch suggestions for a specific cluster |
 
 ### POST /api/projects/{id}/generate-map
+
+Generate a new topical map for a project.
 
 **Request body:**
 ```json
@@ -221,12 +174,10 @@ This allows users to start with a focused map (related keywords only) and expand
 1. Verify user owns the project
 2. Clear any existing keywords for the project (or prompt to confirm overwrite)
 3. Create the seed keyword record with `is_seed = true`
-4. Call DataForSEO Related Keywords endpoint
-5. If `include_suggestions` is true, also call Keyword Suggestions endpoint
-6. Group keywords into clusters
-7. Create cluster parent keywords with `parent_id = null`
-8. Create child keywords with `parent_id` referencing their cluster parent
-9. Return the generated clusters
+4. Call `DataForSeoService->generateTopicalMap()` with the seed and options
+5. Create cluster parent keywords with `parent_id = null`
+6. Create child keywords with `parent_id` referencing their cluster parent
+7. Return the generated clusters
 
 **Response:**
 ```json
@@ -248,7 +199,32 @@ This allows users to start with a focused map (related keywords only) and expand
 }
 ```
 
+### GET /api/projects/{id}/clusters
+
+Get all clusters for a project.
+
+**Response:**
+```json
+{
+  "seed": "keto diet",
+  "cluster_count": 15,
+  "total_keywords": 150,
+  "clusters": [
+    {
+      "id": 1,
+      "keyword": "keto diet types",
+      "search_volume": 2400,
+      "difficulty": 35,
+      "difficulty_label": "Doable",
+      "children_count": 8
+    }
+  ]
+}
+```
+
 ### GET /api/projects/{id}/clusters/{clusterId}
+
+Get a single cluster with all its children.
 
 **Response:**
 ```json
@@ -277,7 +253,7 @@ Fetch keyword suggestions for the seed keyword and merge into the existing topic
 **Logic:**
 1. Verify user owns the project and topical map exists
 2. Get the seed keyword for the project
-3. Call DataForSEO Keyword Suggestions endpoint with the seed
+3. Call `DataForSeoService->getKeywordSuggestions()` with the seed
 4. Deduplicate against existing keywords
 5. Add new keywords to appropriate clusters (or create new clusters)
 6. Return count of keywords added
@@ -297,7 +273,7 @@ Fetch keyword suggestions for a specific cluster parent and add as children.
 
 **Logic:**
 1. Verify user owns the project and cluster exists
-2. Call DataForSEO Keyword Suggestions endpoint with the cluster's parent keyword
+2. Call `DataForSeoService->getKeywordSuggestions()` with the cluster's parent keyword
 3. Deduplicate against existing children in this cluster
 4. Add new keywords as children of this cluster
 5. Return count of keywords added
@@ -309,6 +285,69 @@ Fetch keyword suggestions for a specific cluster parent and add as children.
   "cluster_keyword": "keto diet types",
   "keywords_added": 8,
   "message": "Added 8 suggestions to the 'keto diet types' cluster"
+}
+```
+
+## 3. Controller Implementation
+
+Create `TopicalMapController` (or add to `ProjectController`):
+
+```php
+class TopicalMapController extends Controller
+{
+    public function __construct(
+        protected DataForSeoService $dataForSeo
+    ) {}
+
+    public function generate(Request $request, Project $project)
+    {
+        $this->authorize('update', $project);
+
+        $validated = $request->validate([
+            'seed_keyword' => 'required|string|max:255',
+            'include_suggestions' => 'boolean',
+        ]);
+
+        // Clear existing keywords
+        $project->keywords()->delete();
+
+        // Create seed keyword
+        $project->keywords()->create([
+            'keyword' => $validated['seed_keyword'],
+            'is_seed' => true,
+        ]);
+
+        // Generate topical map via service
+        $clusters = $this->dataForSeo->generateTopicalMap(
+            $validated['seed_keyword'],
+            $validated['include_suggestions'] ?? false
+        );
+
+        // Store clusters and children
+        foreach ($clusters as $cluster) {
+            $parent = $project->keywords()->create([
+                'keyword' => $cluster['parent']['keyword'],
+                'search_volume' => $cluster['parent']['search_volume'],
+                'difficulty' => $cluster['parent']['difficulty'],
+            ]);
+
+            foreach ($cluster['children'] as $child) {
+                $project->keywords()->create([
+                    'parent_id' => $parent->id,
+                    'keyword' => $child['keyword'],
+                    'search_volume' => $child['search_volume'],
+                    'difficulty' => $child['difficulty'],
+                ]);
+            }
+        }
+
+        return response()->json([
+            'seed' => $validated['seed_keyword'],
+            'cluster_count' => count($clusters),
+            'total_keywords' => $project->keywords()->count(),
+            // ...
+        ]);
+    }
 }
 ```
 
@@ -341,7 +380,7 @@ The project detail page becomes the topical map workspace with two states:
 
 ### Cluster List Component
 
-Display clusters in a list:
+Display clusters in a list or grid:
 
 - Each cluster shows:
   - Parent keyword text (the cluster name)
@@ -369,7 +408,7 @@ When fetching suggestions (top-level or cluster-level):
 
 ### Difficulty Badges
 
-Same color scheme as before:
+Color scheme (thresholds defined in Milestone 2):
 - **Easy (0-29):** Green (bg-green-100 text-green-800)
 - **Doable (30-59):** Yellow (bg-yellow-100 text-yellow-800)
 - **Hard (60-100):** Red (bg-red-100 text-red-800)
@@ -415,7 +454,6 @@ The milestone is complete when:
 - Consider queuing the generation job for better UX (return immediately, poll for completion)
 - The quality of clusters depends on DataForSEO's data—AI enhancement comes in Milestone 4
 - Start with a reasonable limit (e.g., 100-150 total keywords) to keep API costs manageable
-- Store raw DataForSEO response data if needed for debugging or future AI processing
 - The suggestions toggle defaults to off to minimize API costs and generation time
 - Fetching suggestions post-generation allows users to incrementally expand their map
 - When adding suggestions to an existing map, deduplicate carefully to avoid duplicate keywords

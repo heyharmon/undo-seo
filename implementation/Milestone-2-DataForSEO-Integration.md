@@ -219,14 +219,54 @@ public function generateTopicalMap(string $seedKeyword, bool $includeSuggestions
     // 3. Combine and deduplicate
     $allKeywords = $this->mergeAndDeduplicate($relatedKeywords, $suggestions);
 
-    // 4. Group into clusters
-    $clusters = $this->clusterKeywords($allKeywords);
+    // 4. Filter out invalid keywords
+    $filteredKeywords = $this->filterKeywords($allKeywords);
+
+    // 5. Group into clusters
+    $clusters = $this->clusterKeywords($filteredKeywords);
 
     return $clusters;
 }
 ```
 
-## 5. Clustering Logic
+## 5. Keyword Filtering
+
+Before clustering, filter out keywords that don't meet minimum quality criteria.
+
+### Filtering Rules
+
+| Rule | Action |
+|------|--------|
+| Search volume = 0 | **Exclude** — Keywords with no search volume provide no value |
+
+### Implementation
+
+```php
+/**
+ * Filter keywords based on quality criteria
+ *
+ * @param array $keywords Raw keywords from API
+ * @return array Filtered keywords
+ */
+protected function filterKeywords(array $keywords): array
+{
+    return array_filter($keywords, function ($keyword) {
+        // Exclude keywords with 0 search volume
+        if (($keyword['search_volume'] ?? 0) === 0) {
+            return false;
+        }
+
+        return true;
+    });
+}
+```
+
+### Why Filter?
+
+- **0 volume keywords** — These have no measurable search demand. Including them clutters the topical map with keywords that won't drive traffic.
+- **Keep it simple** — For the MVP, volume > 0 is the only filter. Additional filters (e.g., minimum volume threshold, difficulty caps) can be added later based on user feedback.
+
+## 6. Clustering Logic
 
 The clustering algorithm groups keywords into logical clusters using **connection strength only**. Connection strength is a score provided by DataForSEO that indicates how strongly related two keywords are.
 
@@ -298,7 +338,7 @@ Each cluster should have:
 ]
 ```
 
-## 6. Difficulty Labels
+## 7. Difficulty Labels
 
 Add difficulty label logic (can be in service or model):
 
@@ -320,7 +360,7 @@ public function getDifficultyLabel(int $difficulty): string
 }
 ```
 
-## 7. Error Handling
+## 8. Error Handling
 
 - Log all API errors with context (endpoint, request payload, response)
 - Return user-friendly error messages ("Unable to fetch keywords. Please try again.")
@@ -363,12 +403,13 @@ The milestone is complete when:
 1. DataForSeoService can fetch related keywords for a seed keyword
 2. DataForSeoService can fetch keyword suggestions for a seed keyword
 3. Each returned keyword includes: keyword text, search_volume, difficulty score, connection_strength
-4. `generateTopicalMap` returns clustered keywords with parent/children structure
-5. Clustering uses connection_strength only (no word pattern matching)
-6. Orphan keywords (low connection strength) are handled separately
-7. Difficulty labels return "Easy", "Doable", or "Hard" based on thresholds
-8. API errors are logged and handled gracefully
-9. Service is testable via a simple artisan command
+4. Keywords with 0 search volume are filtered out before clustering
+5. `generateTopicalMap` returns clustered keywords with parent/children structure
+6. Clustering uses connection_strength only (no word pattern matching)
+7. Orphan keywords (low connection strength) are handled separately
+8. Difficulty labels return "Easy", "Doable", or "Hard" based on thresholds
+9. API errors are logged and handled gracefully
+10. Service is testable via a simple artisan command
 
 # Testing Tips
 

@@ -46,7 +46,7 @@ GET
 
 /api/projects/\{id\}/keywords
 
-List saved keywords \(optional if using Inertia props\)
+List saved keywords
 
 ## 2\. Save Keyword Logic
 

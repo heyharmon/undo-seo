@@ -1,4 +1,4 @@
-__MILESTONE 1 OF 5__
+__MILESTONE 1 OF 4__
 
 Project Management
 
@@ -10,7 +10,8 @@ Implement CRUD operations for projects\. Users can create, view, edit, and delet
 
 # Prerequisites
 
-- Milestone 1 complete \(auth working, database schema in place\)
+- Auth working \(user registration and login\)
+- Database schema in place
 
 # Deliverables
 
@@ -128,8 +129,7 @@ __Projects/Show\.vue__
 
 - Project name as header
 - Edit button
-- Placeholder section: "Keyword research coming soon" \(Milestone 4 adds the real UI\)
-- Placeholder section: "Your topical map will appear here" \(Milestone 5 adds this\)
+- Placeholder section: "Your topical map will appear here" \(Milestone 3 adds the full UI\)
 
 ## 5\. Navigation Updates
 

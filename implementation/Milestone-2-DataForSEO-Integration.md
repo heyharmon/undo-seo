@@ -217,13 +217,11 @@ public function generateTopicalMap(string $seedKeyword, bool $includeSuggestions
     }
 
     // 3. Combine and deduplicate
+    // Note: Keywords with 0 volume are already filtered at the API level
     $allKeywords = $this->mergeAndDeduplicate($relatedKeywords, $suggestions);
 
-    // 4. Filter out invalid keywords
-    $filteredKeywords = $this->filterKeywords($allKeywords);
-
-    // 5. Group into clusters
-    $clusters = $this->clusterKeywords($filteredKeywords);
+    // 4. Group into clusters
+    $clusters = $this->clusterKeywords($allKeywords);
 
     return $clusters;
 }
@@ -231,7 +229,7 @@ public function generateTopicalMap(string $seedKeyword, bool $includeSuggestions
 
 ## 5. Keyword Filtering
 
-Before clustering, filter out keywords that don't meet minimum quality criteria.
+Filter out keywords that don't meet minimum quality criteria **at the API level** using DataForSEO's `filters` parameter. This is more efficient than filtering locally — we only receive the keywords we want.
 
 ### Filtering Rules
 
@@ -241,30 +239,59 @@ Before clustering, filter out keywords that don't meet minimum quality criteria.
 
 ### Implementation
 
-```php
-/**
- * Filter keywords based on quality criteria
- *
- * @param array $keywords Raw keywords from API
- * @return array Filtered keywords
- */
-protected function filterKeywords(array $keywords): array
-{
-    return array_filter($keywords, function ($keyword) {
-        // Exclude keywords with 0 search volume
-        if (($keyword['search_volume'] ?? 0) === 0) {
-            return false;
-        }
+Add the `filters` parameter to API requests:
 
-        return true;
-    });
+```php
+public function getRelatedKeywords(string $keyword, int $limit = 100): array
+{
+    $response = $this->request('/v3/dataforseo_labs/google/related_keywords/live', [[
+        'keyword' => $keyword,
+        'location_code' => 2840,
+        'language_code' => 'en',
+        'limit' => $limit,
+        'filters' => [
+            ['keyword_data.keyword_info.search_volume', '>', 0]
+        ],
+    ]]);
+
+    // Parse and return keywords from response
 }
 ```
 
-### Why Filter?
+The same filter should be applied to `getKeywordSuggestions()`:
 
-- **0 volume keywords** — These have no measurable search demand. Including them clutters the topical map with keywords that won't drive traffic.
-- **Keep it simple** — For the MVP, volume > 0 is the only filter. Additional filters (e.g., minimum volume threshold, difficulty caps) can be added later based on user feedback.
+```php
+'filters' => [
+    ['keyword_data.keyword_info.search_volume', '>', 0]
+]
+```
+
+### Filter Syntax
+
+DataForSEO filters use the format: `[field, operator, value]`
+
+- **Field:** `keyword_data.keyword_info.search_volume`
+- **Operator:** `>`, `<`, `>=`, `<=`, `=`, `<>`
+- **Value:** The threshold (0 in our case)
+
+Multiple filters can be combined with `and` / `or`:
+```php
+'filters' => [
+    ['keyword_data.keyword_info.search_volume', '>', 0],
+    'and',
+    ['keyword_data.keyword_info.search_volume', '<', 100000]
+]
+```
+
+### Why Filter at API Level?
+
+- **Efficiency** — Less data transferred over the network
+- **Cost** — DataForSEO may charge based on results; fewer results = lower cost
+- **Performance** — No need to process and discard keywords locally
+
+### Why Exclude 0 Volume?
+
+Keywords with no search volume have no measurable demand. Including them clutters the topical map with keywords that won't drive traffic. For the MVP, volume > 0 is the only filter. Additional filters can be added later based on user feedback.
 
 ## 6. Clustering Logic
 

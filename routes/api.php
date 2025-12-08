@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\TopicalMapController;
 use App\Http\Controllers\UserController;
 
 // Public routes
@@ -17,6 +18,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Projects (user's own projects)
     Route::apiResource('projects', ProjectController::class);
+
+    // Topical Map endpoints
+    Route::post('projects/{project}/generate-map', [TopicalMapController::class, 'generate']);
+    Route::get('projects/{project}/clusters', [TopicalMapController::class, 'clusters']);
+    Route::get('projects/{project}/clusters/{cluster}', [TopicalMapController::class, 'showCluster']);
+    Route::post('projects/{project}/suggestions', [TopicalMapController::class, 'suggestions']);
+    Route::post('projects/{project}/clusters/{cluster}/suggestions', [TopicalMapController::class, 'clusterSuggestions']);
 
     // Admin-only routes
     Route::middleware('admin')->group(function () {

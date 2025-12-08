@@ -28,9 +28,9 @@ Compact single-row design with three sections:
 
 **Right Section:**
 - Three action buttons (small size, minimal spacing)
-  - "Get Suggestions" - default style
-  - "Regenerate" - default style with refresh icon
-  - "AI Enhance" - primary/accent color with sparkles icon
+  - "Get Suggestions" - default style - does nothing at this stage
+  - "Regenerate" - default style with refresh icon - does nothing at this stage
+  - "AI Enhance" - primary/accent color with sparkles icon - does nothing at this stage
 
 All elements aligned vertically centered with minimal padding to maximize vertical space efficiency.
 

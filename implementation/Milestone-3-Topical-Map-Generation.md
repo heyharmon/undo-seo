@@ -16,9 +16,10 @@ Build the core topical map generation feature. Users enter a seed keyword and th
 # Deliverables
 
 1. Updated data model with keyword hierarchy (parent/child relationships)
-2. Topical map generation using DataForSEO endpoints
-3. API endpoints for generating and viewing topical maps
-4. Frontend UI for seed input, cluster display, and cluster expansion
+2. Topical map generation using DataForSEO Related Keywords endpoint
+3. Optional keyword suggestions integration (toggle during generation or fetch post-generation)
+4. API endpoints for generating, viewing, and expanding topical maps
+5. Frontend UI for seed input, cluster display, cluster expansion, and suggestion fetching
 
 # Core Concepts
 
@@ -135,15 +136,17 @@ public function seedKeyword()
 
 ### Endpoints to Use
 
-**Primary: Related Keywords**
+**Primary: Related Keywords (always used)**
 - Endpoint: `POST /v3/dataforseo_labs/google/related_keywords/live`
 - Purpose: Get semantically related keywords with connection strength data
 - Returns: Related keywords with search metrics and relationship data for grouping
+- This is the core endpoint for topical map generation
 
-**Secondary: Keyword Suggestions**
+**Optional: Keyword Suggestions (user-enabled)**
 - Endpoint: `POST /v3/dataforseo_labs/google/keyword_suggestions/live`
 - Purpose: Get autocomplete-style suggestions for long-tail variations
-- Use: Supplement related keywords to catch variations the primary endpoint misses
+- Use: Supplements related keywords to catch variations the primary endpoint misses
+- **Not called by default** — user must explicitly enable this option
 
 ### DataForSEO Service Methods
 
@@ -151,29 +154,29 @@ Add methods to the existing DataForSeoService:
 
 ```php
 /**
- * Get related keywords for clustering
+ * Get related keywords for clustering (primary method)
  */
 public function getRelatedKeywords(string $keyword, int $limit = 100): array
 
 /**
- * Get keyword suggestions for long-tail variations
+ * Get keyword suggestions for long-tail variations (optional)
  */
 public function getKeywordSuggestions(string $keyword, int $limit = 50): array
 
 /**
- * Generate a complete topical map from a seed keyword
- * Combines related keywords and suggestions, then groups into clusters
+ * Generate a topical map from a seed keyword
+ * @param bool $includeSuggestions - Whether to also fetch keyword suggestions
  */
-public function generateTopicalMap(string $seedKeyword): array
+public function generateTopicalMap(string $seedKeyword, bool $includeSuggestions = false): array
 ```
 
 ### Clustering Logic
 
 The `generateTopicalMap` method should:
 
-1. Call the Related Keywords endpoint with the seed
-2. Call the Keyword Suggestions endpoint with the seed
-3. Combine and deduplicate results
+1. Call the Related Keywords endpoint with the seed (always)
+2. If `includeSuggestions` is true, also call the Keyword Suggestions endpoint
+3. Combine and deduplicate results (if suggestions were included)
 4. Group keywords into clusters based on DataForSEO's connection data
 5. Return structured data with clusters and their children
 
@@ -181,7 +184,15 @@ The `generateTopicalMap` method should:
 - Use DataForSEO's `connection_strength` or semantic grouping data from the related keywords response
 - Keywords with high connection strength to each other form a cluster
 - The keyword with the highest search volume in each group becomes the cluster parent
-- Alternatively, use common word patterns to group (e.g., all keywords containing "keto diet types" group together)
+
+### Post-Generation Suggestions
+
+After a topical map is created, users can fetch additional suggestions:
+
+1. **Top-level suggestions** — Run keyword suggestions for the seed keyword and merge into existing clusters
+2. **Cluster-level suggestions** — Run keyword suggestions for a specific cluster parent to expand that cluster
+
+This allows users to start with a focused map (related keywords only) and expand it incrementally.
 
 ## 3. API Endpoints
 
@@ -190,24 +201,32 @@ The `generateTopicalMap` method should:
 | POST | /api/projects/{id}/generate-map | Generate topical map from seed keyword |
 | GET | /api/projects/{id}/clusters | Get all clusters for a project |
 | GET | /api/projects/{id}/clusters/{clusterId} | Get cluster with children |
+| POST | /api/projects/{id}/suggestions | Fetch suggestions for the entire topical map |
+| POST | /api/projects/{id}/clusters/{clusterId}/suggestions | Fetch suggestions for a specific cluster |
 
 ### POST /api/projects/{id}/generate-map
 
 **Request body:**
 ```json
 {
-  "seed_keyword": "keto diet"
+  "seed_keyword": "keto diet",
+  "include_suggestions": false
 }
 ```
+
+- `seed_keyword` (required): The broad topic to build the topical map around
+- `include_suggestions` (optional, default: false): Whether to also fetch keyword suggestions during generation
 
 **Logic:**
 1. Verify user owns the project
 2. Clear any existing keywords for the project (or prompt to confirm overwrite)
 3. Create the seed keyword record with `is_seed = true`
-4. Call DataForSEO to generate topical map
-5. Create cluster parent keywords with `parent_id = null`
-6. Create child keywords with `parent_id` referencing their cluster parent
-7. Return the generated clusters
+4. Call DataForSEO Related Keywords endpoint
+5. If `include_suggestions` is true, also call Keyword Suggestions endpoint
+6. Group keywords into clusters
+7. Create cluster parent keywords with `parent_id = null`
+8. Create child keywords with `parent_id` referencing their cluster parent
+9. Return the generated clusters
 
 **Response:**
 ```json
@@ -215,6 +234,7 @@ The `generateTopicalMap` method should:
   "seed": "keto diet",
   "cluster_count": 15,
   "total_keywords": 150,
+  "included_suggestions": false,
   "clusters": [
     {
       "id": 1,
@@ -250,6 +270,48 @@ The `generateTopicalMap` method should:
 }
 ```
 
+### POST /api/projects/{id}/suggestions
+
+Fetch keyword suggestions for the seed keyword and merge into the existing topical map.
+
+**Logic:**
+1. Verify user owns the project and topical map exists
+2. Get the seed keyword for the project
+3. Call DataForSEO Keyword Suggestions endpoint with the seed
+4. Deduplicate against existing keywords
+5. Add new keywords to appropriate clusters (or create new clusters)
+6. Return count of keywords added
+
+**Response:**
+```json
+{
+  "keywords_added": 23,
+  "new_clusters": 2,
+  "message": "Added 23 keyword suggestions to your topical map"
+}
+```
+
+### POST /api/projects/{id}/clusters/{clusterId}/suggestions
+
+Fetch keyword suggestions for a specific cluster parent and add as children.
+
+**Logic:**
+1. Verify user owns the project and cluster exists
+2. Call DataForSEO Keyword Suggestions endpoint with the cluster's parent keyword
+3. Deduplicate against existing children in this cluster
+4. Add new keywords as children of this cluster
+5. Return count of keywords added
+
+**Response:**
+```json
+{
+  "cluster_id": 1,
+  "cluster_keyword": "keto diet types",
+  "keywords_added": 8,
+  "message": "Added 8 suggestions to the 'keto diet types' cluster"
+}
+```
+
 ## 4. Frontend Components
 
 ### Project Show Page (Projects/Show.vue)
@@ -258,25 +320,28 @@ The project detail page becomes the topical map workspace with two states:
 
 **State 1: No topical map yet**
 - Show seed keyword input
+- Toggle option: "Include keyword suggestions" (off by default)
 - "Generate Topical Map" button
 - Brief explanation of what will happen
 
 **State 2: Topical map exists**
 - Display seed keyword at top
 - Show cluster count and total keyword count
+- "Get Suggestions" button (fetches suggestions for the entire map)
 - List all clusters as expandable cards/rows
 - Option to regenerate (with confirmation)
 
 ### Seed Input Component
 
 - Text input: "Enter a seed keyword (e.g., keto diet, dog training)"
+- Toggle/checkbox: "Include keyword suggestions" with helper text explaining this adds long-tail variations but takes longer
 - "Generate Topical Map" button
 - Loading state while generating (this may take 10-30 seconds)
 - Progress indicator or message: "Analyzing keywords..."
 
 ### Cluster List Component
 
-Display clusters in a list or grid:
+Display clusters in a list:
 
 - Each cluster shows:
   - Parent keyword text (the cluster name)
@@ -284,6 +349,7 @@ Display clusters in a list or grid:
   - Difficulty badge (Easy/Doable/Hard with colors)
   - Child keyword count
   - Expand/collapse toggle
+  - "Get Suggestions" button (fetches suggestions for this cluster only)
 
 ### Cluster Detail Component
 
@@ -293,6 +359,13 @@ When a cluster is expanded:
 - Each child shows: keyword, search volume, difficulty badge
 - Sorting by volume or difficulty (client-side)
 - Filtering by difficulty level
+
+### Suggestions Feedback
+
+When fetching suggestions (top-level or cluster-level):
+- Show loading state on the button
+- After completion, show success message with count of keywords added
+- Refresh the relevant cluster(s) to show new keywords
 
 ### Difficulty Badges
 
@@ -321,15 +394,20 @@ Same color scheme as before:
 The milestone is complete when:
 
 1. User can enter a seed keyword on the project page
-2. Clicking "Generate" creates a topical map with multiple clusters
-3. Each cluster has a parent keyword and child keywords
-4. Clusters display with keyword count, volume, and difficulty
-5. User can expand a cluster to see all child keywords
-6. Child keywords show volume and difficulty badges
-7. User can sort/filter within an expanded cluster
-8. Loading state shows during generation
-9. Existing keywords are cleared when regenerating (with confirmation)
-10. Empty state displays before first generation
+2. User can toggle "Include keyword suggestions" option (off by default)
+3. Clicking "Generate" creates a topical map with multiple clusters
+4. When toggle is off, only Related Keywords endpoint is used
+5. When toggle is on, both Related Keywords and Keyword Suggestions endpoints are used
+6. Each cluster has a parent keyword and child keywords
+7. Clusters display with keyword count, volume, and difficulty
+8. User can expand a cluster to see all child keywords
+9. Child keywords show volume and difficulty badges
+10. User can sort/filter within an expanded cluster
+11. User can click "Get Suggestions" at the top level to add suggestions to the entire map
+12. User can click "Get Suggestions" on a cluster to add suggestions to that cluster only
+13. Loading states show during generation and suggestion fetching
+14. Existing keywords are cleared when regenerating (with confirmation)
+15. Empty state displays before first generation
 
 # Notes
 
@@ -338,3 +416,6 @@ The milestone is complete when:
 - The quality of clusters depends on DataForSEO's data—AI enhancement comes in Milestone 4
 - Start with a reasonable limit (e.g., 100-150 total keywords) to keep API costs manageable
 - Store raw DataForSEO response data if needed for debugging or future AI processing
+- The suggestions toggle defaults to off to minimize API costs and generation time
+- Fetching suggestions post-generation allows users to incrementally expand their map
+- When adding suggestions to an existing map, deduplicate carefully to avoid duplicate keywords

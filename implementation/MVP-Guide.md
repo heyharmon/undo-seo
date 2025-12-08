@@ -10,7 +10,9 @@ Solopreneurs launching new businesses need keyword research to find market oppor
 
 ## The Solution
 
-A simple, $5/month keyword research tool that helps solopreneurs find keywords they can actually rank for\. No enterprise features, no complexity — just a clear path to identifying low\-competition keywords for market entry\.
+A simple keyword research tool that helps solopreneurs find keywords they can actually rank for\. No enterprise features, no complexity — just a clear path to identifying low\-competition keywords for market entry\.
+
+*Note: Pricing and billing will be added post\-MVP \(see backlog\)\.*
 
 ## Positioning Statement
 

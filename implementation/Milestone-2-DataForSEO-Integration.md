@@ -228,33 +228,46 @@ public function generateTopicalMap(string $seedKeyword, bool $includeSuggestions
 
 ## 5. Clustering Logic
 
-The clustering algorithm groups keywords into logical clusters around parent keywords.
+The clustering algorithm groups keywords into logical clusters using **connection strength only**. Connection strength is a score provided by DataForSEO that indicates how strongly related two keywords are.
 
 ### Clustering Approach
 
 ```php
 /**
- * Group keywords into clusters based on connection strength and patterns
+ * Group keywords into clusters based on connection strength
  *
- * @param array $keywords All keywords to cluster
+ * @param array $keywords All keywords to cluster (each has connection_strength)
  * @return array Structured clusters with parent and children
  */
 protected function clusterKeywords(array $keywords): array
 {
-    // Strategy options (implement one or combine):
-    
-    // Option A: Use connection_strength from DataForSEO
-    // - Keywords with high connection strength to each other form a cluster
-    // - The keyword with highest search volume becomes cluster parent
-    
-    // Option B: Word pattern grouping
-    // - Group keywords sharing common word patterns
-    // - e.g., "keto diet types", "types of keto", "keto diet variations"
-    
-    // Option C: Semantic similarity
-    // - Use word overlap or simple NLP to group related terms
+    // 1. Sort keywords by connection_strength (highest first)
+    // 2. Group keywords with high connection strength to each other
+    // 3. Within each group, the keyword with highest search_volume becomes the parent
+    // 4. Keywords without strong connections become "orphans" (handled separately)
 }
 ```
+
+### How Connection Strength Works
+
+DataForSEO returns a `connection_strength` value for each related keyword. This score indicates how semantically related the keyword is to the seed keyword and to other keywords in the result set.
+
+**Clustering steps:**
+
+1. **Set a threshold** — Define a minimum connection strength to consider keywords "related" (e.g., 0.3 or 30%)
+2. **Group by strength** — Keywords with connection strength above the threshold to each other form a cluster
+3. **Select parent** — The keyword with the highest search volume in each group becomes the cluster parent
+4. **Handle orphans** — Keywords below the threshold don't get clustered; they can be shown separately or omitted
+
+### Orphan Keywords
+
+Some keywords may not have strong connection strength to any others. These are **orphan keywords**.
+
+**How to handle orphans:**
+- Display them in a separate "Unclustered" or "Other Keywords" section
+- Or simply exclude them from the topical map (acceptable for MVP)
+
+This is expected behavior — not every keyword fits neatly into a cluster, and that's fine.
 
 ### Cluster Structure
 
@@ -278,6 +291,10 @@ Each cluster should have:
         ]
     ],
     // ... more clusters
+],
+'orphans' => [
+    ['keyword' => 'some unrelated keyword', 'search_volume' => 500, 'difficulty' => 45],
+    // ... keywords without strong connections
 ]
 ```
 
@@ -345,11 +362,13 @@ The milestone is complete when:
 
 1. DataForSeoService can fetch related keywords for a seed keyword
 2. DataForSeoService can fetch keyword suggestions for a seed keyword
-3. Each returned keyword includes: keyword text, search_volume, difficulty score
+3. Each returned keyword includes: keyword text, search_volume, difficulty score, connection_strength
 4. `generateTopicalMap` returns clustered keywords with parent/children structure
-5. Difficulty labels return "Easy", "Doable", or "Hard" based on thresholds
-6. API errors are logged and handled gracefully
-7. Service is testable via a simple artisan command
+5. Clustering uses connection_strength only (no word pattern matching)
+6. Orphan keywords (low connection strength) are handled separately
+7. Difficulty labels return "Easy", "Doable", or "Hard" based on thresholds
+8. API errors are logged and handled gracefully
+9. Service is testable via a simple artisan command
 
 # Testing Tips
 
@@ -368,5 +387,7 @@ The milestone is complete when:
 - Consider adding a config value for max keywords returned per expansion
 - Milestone 3 will use this service to generate and store topical maps
 - If DataForSEO provides both volume and difficulty in one call, use that to reduce costs
-- The clustering algorithm can be refined over time — start simple
+- Clustering relies solely on connection_strength — do not use word pattern matching
+- The connection strength threshold can be tuned based on results (start with a reasonable default)
+- Orphan keywords are expected and acceptable — not every keyword needs to be clustered
 - Consider caching API responses during development to reduce costs

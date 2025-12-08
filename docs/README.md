@@ -6,6 +6,8 @@ This directory contains high-level overviews of the main domains in the Laravel/
 
 -   **agents** – Do's and dont's for ai agents
 -   **auth** – User authentication and registration
+-   **projects** – Project management for keyword research
+-   **ui** – UI design guidelines and visual language
 -   **users** – User management
 
 Use these documents as quick context for AI coding agents working within each domain.

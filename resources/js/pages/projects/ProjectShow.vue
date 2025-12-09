@@ -25,12 +25,13 @@ const clusterLoading = ref(false)
 
 // Generation form state
 const seedKeyword = ref('')
-const includeSuggestions = ref(false)
+const keywordSource = ref('suggestions') // 'ideas' or 'suggestions'
 const generating = ref(false)
 const generateError = ref(null)
 
-// Suggestions state
+// Expansion state (suggestions and ideas)
 const suggestionsLoading = ref(false)
+const ideasLoading = ref(false)
 
 const hasTopicalMap = computed(() => {
     return mapData.value && mapData.value.clusters && mapData.value.clusters.length > 0
@@ -71,7 +72,7 @@ const generateMap = async () => {
     generateError.value = null
 
     try {
-        await keywords.generateMap(route.params.id, seedKeyword.value.trim(), includeSuggestions.value)
+        await keywords.generateMap(route.params.id, seedKeyword.value.trim(), keywordSource.value)
         await fetchClusters()
         seedKeyword.value = ''
     } catch (err) {
@@ -79,14 +80,6 @@ const generateMap = async () => {
     } finally {
         generating.value = false
     }
-}
-
-const regenerateMap = async () => {
-    if (!mapData.value?.seed) return
-    if (!confirm('This will replace your current topical map. Continue?')) return
-
-    seedKeyword.value = mapData.value.seed
-    await generateMap()
 }
 
 const selectCluster = async (cluster) => {
@@ -112,6 +105,18 @@ const getSuggestions = async () => {
         // Handle error silently or show notification
     } finally {
         suggestionsLoading.value = false
+    }
+}
+
+const getIdeas = async () => {
+    ideasLoading.value = true
+    try {
+        await keywords.getIdeas(route.params.id)
+        await fetchClusters()
+    } catch (err) {
+        // Handle error silently or show notification
+    } finally {
+        ideasLoading.value = false
     }
 }
 
@@ -175,13 +180,25 @@ onMounted(() => {
                         <Input id="seed" v-model="seedKeyword" type="text" placeholder="e.g., keto diet, dog training" class="mt-1.5" />
                     </div>
 
-                    <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-3 transition hover:border-neutral-300">
-                        <input v-model="includeSuggestions" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-500" />
-                        <div>
-                            <span class="text-sm font-medium text-neutral-900">Include keyword suggestions</span>
-                            <p class="mt-0.5 text-xs text-neutral-500">Adds long-tail variations but takes longer to generate</p>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-neutral-700">Keyword Source</label>
+                        <div class="space-y-2">
+                            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-3 transition hover:border-neutral-300" :class="{ 'border-neutral-900 bg-neutral-50': keywordSource === 'suggestions' }">
+                                <input v-model="keywordSource" type="radio" value="suggestions" class="mt-0.5 h-4 w-4 border-neutral-300 text-neutral-900 focus:ring-neutral-500" />
+                                <div>
+                                    <span class="text-sm font-medium text-neutral-900">Keyword Suggestions</span>
+                                    <p class="mt-0.5 text-xs text-neutral-500">Long-tail variations containing your keyword</p>
+                                </div>
+                            </label>
+                            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-3 transition hover:border-neutral-300" :class="{ 'border-neutral-900 bg-neutral-50': keywordSource === 'ideas' }">
+                                <input v-model="keywordSource" type="radio" value="ideas" class="mt-0.5 h-4 w-4 border-neutral-300 text-neutral-900 focus:ring-neutral-500" />
+                                <div>
+                                    <span class="text-sm font-medium text-neutral-900">Keyword Ideas</span>
+                                    <p class="mt-0.5 text-xs text-neutral-500">Semantically related topics (broader coverage)</p>
+                                </div>
+                            </label>
                         </div>
-                    </label>
+                    </div>
 
                     <Button type="submit" class="w-full" :disabled="generating">
                         {{ generating ? 'Generating...' : 'Generate Topical Map' }}
@@ -218,11 +235,8 @@ onMounted(() => {
                 <Button size="sm" variant="ghost" @click="getSuggestions" :disabled="suggestionsLoading">
                     {{ suggestionsLoading ? 'Loading...' : 'Get Suggestions' }}
                 </Button>
-                <Button size="sm" variant="ghost" @click="regenerateMap" :disabled="generating">
-                    <svg class="mr-1 h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Regenerate
+                <Button size="sm" variant="ghost" @click="getIdeas" :disabled="ideasLoading">
+                    {{ ideasLoading ? 'Loading...' : 'Get Ideas' }}
                 </Button>
                 <Button size="sm" variant="outline" @click="goToEdit">Edit</Button>
             </div>

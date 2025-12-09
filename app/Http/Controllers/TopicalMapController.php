@@ -25,8 +25,10 @@ class TopicalMapController extends Controller
 
         $validated = $request->validate([
             'seed_keyword' => 'required|string|max:255',
-            'include_suggestions' => 'boolean',
+            'source' => 'in:ideas,suggestions',
         ]);
+
+        $source = $validated['source'] ?? 'suggestions';
 
         // Clear existing keywords
         $project->keywords()->delete();
@@ -38,15 +40,11 @@ class TopicalMapController extends Controller
         ]);
 
         // Generate topical map via DataForSEO service
-        $result = $this->dataForSeo->generateTopicalMap(
-            $validated['seed_keyword'],
-            $validated['include_suggestions'] ?? false
-        );
+        $result = $this->dataForSeo->generateTopicalMap($validated['seed_keyword'], $source);
 
         $clusters = $result['clusters'];
-        $orphans = $result['orphans'] ?? [];
 
-        // Store clusters and their children
+        // Store clusters
         foreach ($clusters as $cluster) {
             $parent = $project->keywords()->create([
                 'keyword' => $cluster['parent']['keyword'],
@@ -64,20 +62,11 @@ class TopicalMapController extends Controller
             }
         }
 
-        // Store orphan keywords as their own clusters (single-keyword clusters)
-        foreach ($orphans as $orphan) {
-            $project->keywords()->create([
-                'keyword' => $orphan['keyword'],
-                'search_volume' => $orphan['search_volume'],
-                'difficulty' => $orphan['difficulty'],
-            ]);
-        }
-
         return response()->json([
             'seed' => $validated['seed_keyword'],
+            'source' => $source,
             'cluster_count' => $project->clusters()->count(),
             'total_keywords' => $project->keywords()->count(),
-            'included_suggestions' => $validated['include_suggestions'] ?? false,
         ]);
     }
 
@@ -252,6 +241,62 @@ class TopicalMapController extends Controller
             'cluster_keyword' => $cluster->keyword,
             'keywords_added' => $keywordsAdded,
             'message' => "Added {$keywordsAdded} suggestions to the '{$cluster->keyword}' cluster",
+        ]);
+    }
+
+    /**
+     * Fetch keyword ideas (semantically related) for the topical map.
+     * Adds new clusters based on broader topic associations.
+     */
+    public function ideas(Request $request, Project $project)
+    {
+        if ($project->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $seed = $project->seedKeyword;
+        if (!$seed) {
+            return response()->json([
+                'error' => 'No topical map exists. Generate one first.',
+            ], 400);
+        }
+
+        // Get existing keywords to deduplicate
+        $existingKeywords = $project->keywords()
+            ->pluck('keyword')
+            ->map(fn ($k) => strtolower($k))
+            ->toArray();
+
+        // Fetch ideas from DataForSEO (semantically related keywords)
+        $ideas = $this->dataForSeo->getKeywordIdeas($seed->keyword);
+
+        $keywordsAdded = 0;
+        $newClusters = 0;
+
+        foreach ($ideas as $idea) {
+            $keywordLower = strtolower($idea['keyword']);
+
+            // Skip if already exists
+            if (in_array($keywordLower, $existingKeywords)) {
+                continue;
+            }
+
+            // Add as a new cluster (single keyword)
+            $project->keywords()->create([
+                'keyword' => $idea['keyword'],
+                'search_volume' => $idea['search_volume'],
+                'difficulty' => $idea['difficulty'],
+            ]);
+
+            $existingKeywords[] = $keywordLower;
+            $keywordsAdded++;
+            $newClusters++;
+        }
+
+        return response()->json([
+            'keywords_added' => $keywordsAdded,
+            'new_clusters' => $newClusters,
+            'message' => "Added {$keywordsAdded} keyword ideas to your topical map",
         ]);
     }
 }

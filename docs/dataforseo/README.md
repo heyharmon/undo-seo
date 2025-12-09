@@ -1,59 +1,76 @@
-# DataForSEO Domain
+# DataForSEO Integration
 
-## Purpose
+Handles keyword research via the DataForSEO Labs API.
 
-Provides keyword research data via the DataForSEO API. This service fetches related keywords, keyword suggestions, and generates clustered topical maps for SEO analysis.
+## API Endpoints Used
 
-## Backend
+### Keyword Suggestions (`/dataforseo_labs/google/keyword_suggestions/live`)
+**Purpose:** Topical map generation and expansion
 
-- **DataForSeoService**: `app/Services/DataForSeoService.php` — Core service for all API interactions
-- **DataForSeoException**: `app/Exceptions/DataForSeoException.php` — Custom exception for API errors
+Returns search queries that *include* the seed keyword. These are long-tail variations and questions that contain the exact phrase.
 
-### Configuration
+**Example:** For "keto diet" you get:
+- keto diet for beginners
+- keto diet recipes
+- is keto diet safe
+- keto diet meal plan
 
-Environment variables (add to `.env`):
+**Usage in app:**
+- Called when generating a new topical map (each keyword becomes a cluster)
+- Called via "Get Suggestions" to add more long-tail keywords
+- Called when expanding a specific cluster
+
+### Keyword Ideas (`/dataforseo_labs/google/keyword_ideas/live`)
+**Purpose:** Discover new topic areas
+
+Returns semantically related keywords based on product/service categories. These are *conceptually* related keywords that may not contain the exact seed phrase.
+
+**Example:** For "keto diet" you might get:
+- low carb recipes
+- intermittent fasting
+- macro calculator
+- carb cycling
+
+**Usage in app:** Called via "Get Ideas" button to add semantically related clusters after the initial map is generated.
+
+## Data Flow
+
+```
+1. User enters seed keyword → Keyword Suggestions API → Creates topical map
+2. User clicks "Get Suggestions" → More long-tail variations added
+3. User clicks "Get Ideas" → Semantically related topics added
+4. User expands a cluster → Keyword Suggestions API → Adds children
+5. (Future) AI reorganizes clusters semantically
+```
+
+## Service Class
+
+`App\Services\DataForSeoService` provides:
+
+| Method | Purpose |
+|--------|---------|
+| `generateTopicalMap($seedKeyword, $limit)` | Generate topical map using Suggestions API |
+| `getKeywordSuggestions($keyword, $limit)` | Fetch long-tail variations |
+| `getKeywordIdeas($keyword, $limit)` | Fetch semantically related keywords |
+| `getDifficultyLabel($difficulty)` | Convert difficulty score to label |
+
+## Response Data
+
+Both endpoints return normalized keyword data:
+
+```php
+[
+    'keyword' => 'the keyword phrase',
+    'search_volume' => 1000,       // Monthly searches
+    'difficulty' => 45,            // 0-100 score
+]
+```
+
+## Configuration
+
+Set credentials in `.env`:
+
 ```
 DATAFORSEO_LOGIN=your_login
 DATAFORSEO_PASSWORD=your_password
 ```
-
-Config: `config/services.php` under `dataforseo` key.
-
-### Service Methods
-
-| Method | Purpose |
-|--------|---------|
-| `getRelatedKeywords($keyword, $limit)` | Fetch semantically related keywords |
-| `getKeywordSuggestions($keyword, $limit)` | Fetch autocomplete-style suggestions |
-| `generateTopicalMap($seed, $includeSuggestions)` | Generate clustered topical map |
-| `getDifficultyLabel($score)` | Convert difficulty score to Easy/Doable/Hard |
-
-### Clustering Logic
-
-Keywords are grouped using DataForSEO's `connection_strength` score:
-1. Keywords above threshold (0.3) are clustered together
-2. Within each cluster, highest volume keyword becomes parent
-3. Keywords below threshold become "orphans"
-
-### Difficulty Thresholds
-
-| Score | Label |
-|-------|-------|
-| 0-29 | Easy |
-| 30-59 | Doable |
-| 60-100 | Hard |
-
-## Testing
-
-Run the test command:
-```bash
-php artisan dataforseo:test "keto diet"
-php artisan dataforseo:test "running shoes" --suggestions
-```
-
-## API Endpoints Used
-
-- `POST /v3/dataforseo_labs/google/related_keywords/live`
-- `POST /v3/dataforseo_labs/google/keyword_suggestions/live`
-
-All requests filter out keywords with 0 search volume at the API level.

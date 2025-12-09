@@ -7,76 +7,45 @@ use Illuminate\Console\Command;
 
 class DataForSeoTest extends Command
 {
-    protected $signature = 'dataforseo:test {keyword} {--suggestions : Include keyword suggestions}';
+    protected $signature = 'dataforseo:test {keyword}';
 
     protected $description = 'Test the DataForSEO service with a seed keyword';
 
     public function handle(DataForSeoService $service): int
     {
         $keyword = $this->argument('keyword');
-        $includeSuggestions = $this->option('suggestions');
 
         $this->info("Generating topical map for: {$keyword}");
+        $this->info("Using Keyword Suggestions API");
         $this->newLine();
 
         try {
-            $result = $service->generateTopicalMap($keyword, $includeSuggestions);
+            $result = $service->generateTopicalMap($keyword);
 
             $clusters = $result['clusters'];
-            $orphans = $result['orphans'];
 
-            $this->info('Clusters: ' . count($clusters));
-            $this->info('Orphan keywords: ' . count($orphans));
+            $this->info('Clusters generated: ' . count($clusters));
             $this->newLine();
 
-            // Display clusters
-            foreach ($clusters as $index => $cluster) {
+            // Display clusters (first 20)
+            $displayCount = min(count($clusters), 20);
+            foreach (array_slice($clusters, 0, $displayCount) as $index => $cluster) {
                 $parent = $cluster['parent'];
-                $label = $service->getDifficultyLabel($parent['difficulty']);
-                $childCount = count($cluster['children']);
+                $label = $service->getDifficultyLabel($parent['difficulty'] ?? 0);
 
                 $this->line(sprintf(
-                    '<fg=white;options=bold>%d. %s</> <fg=gray>(vol: %s, diff: %d - %s, children: %d)</>',
+                    '<fg=white;options=bold>%d. %s</> <fg=gray>(vol: %s, diff: %d - %s)</>',
                     $index + 1,
                     $parent['keyword'],
-                    number_format($parent['search_volume']),
-                    $parent['difficulty'],
-                    $label,
-                    $childCount
+                    number_format($parent['search_volume'] ?? 0),
+                    $parent['difficulty'] ?? 0,
+                    $label
                 ));
-
-                // Show first 3 children
-                foreach (array_slice($cluster['children'], 0, 3) as $child) {
-                    $childLabel = $service->getDifficultyLabel($child['difficulty']);
-                    $this->line(sprintf(
-                        '   └─ %s <fg=gray>(vol: %s, diff: %d - %s)</>',
-                        $child['keyword'],
-                        number_format($child['search_volume']),
-                        $child['difficulty'],
-                        $childLabel
-                    ));
-                }
-
-                if ($childCount > 3) {
-                    $this->line(sprintf('   └─ <fg=gray>... and %d more</>', $childCount - 3));
-                }
-
-                $this->newLine();
             }
 
-            // Show orphan summary
-            if (count($orphans) > 0) {
-                $this->line('<fg=yellow>Orphan keywords (first 5):</>');
-                foreach (array_slice($orphans, 0, 5) as $orphan) {
-                    $this->line(sprintf(
-                        '   • %s <fg=gray>(vol: %s)</>',
-                        $orphan['keyword'],
-                        number_format($orphan['search_volume'])
-                    ));
-                }
-                if (count($orphans) > 5) {
-                    $this->line(sprintf('   ... and %d more', count($orphans) - 5));
-                }
+            if (count($clusters) > $displayCount) {
+                $this->newLine();
+                $this->line(sprintf('<fg=gray>... and %d more clusters</>', count($clusters) - $displayCount));
             }
 
             return Command::SUCCESS;

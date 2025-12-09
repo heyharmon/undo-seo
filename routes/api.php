@@ -24,6 +24,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('projects/{project}/clusters', [TopicalMapController::class, 'clusters']);
     Route::get('projects/{project}/clusters/{cluster}', [TopicalMapController::class, 'showCluster']);
     Route::post('projects/{project}/suggestions', [TopicalMapController::class, 'suggestions']);
+    Route::post('projects/{project}/ideas', [TopicalMapController::class, 'ideas']);
     Route::post('projects/{project}/clusters/{cluster}/suggestions', [TopicalMapController::class, 'clusterSuggestions']);
 
     // Admin-only routes

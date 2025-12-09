@@ -311,4 +311,104 @@ class TopicalMapController extends Controller
             'message' => "Added {$keywordsAdded} keyword ideas to your topical map",
         ]);
     }
+
+    /**
+     * Explore keywords without saving them.
+     * Returns raw results from DataForSEO for preview.
+     */
+    public function explore(Request $request, Project $project)
+    {
+        if ($project->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'query' => 'required|string|max:500',
+            'source' => 'required|in:ideas,suggestions',
+        ]);
+
+        $query = $validated['query'];
+        $source = $validated['source'];
+
+        // Get existing keywords to mark which ones are already in the project
+        $existingKeywords = $project->keywords()
+            ->pluck('keyword')
+            ->map(fn ($k) => strtolower($k))
+            ->toArray();
+
+        // Fetch keywords from selected source
+        if ($source === 'ideas') {
+            $seedKeywords = array_map('trim', explode(',', $query));
+            $seedKeywords = array_filter($seedKeywords);
+            $results = $this->dataForSeo->getKeywordIdeas($seedKeywords);
+        } else {
+            $results = $this->dataForSeo->getKeywordSuggestions($query);
+        }
+
+        // Mark keywords that already exist in the project
+        $keywords = collect($results)->map(function ($kw) use ($existingKeywords) {
+            return [
+                'keyword' => $kw['keyword'],
+                'search_volume' => $kw['search_volume'],
+                'difficulty' => $kw['difficulty'],
+                'in_project' => in_array(strtolower($kw['keyword']), $existingKeywords),
+            ];
+        });
+
+        return response()->json([
+            'query' => $query,
+            'source' => $source,
+            'count' => $keywords->count(),
+            'keywords' => $keywords,
+        ]);
+    }
+
+    /**
+     * Add selected keywords to the project as clusters.
+     */
+    public function addKeywords(Request $request, Project $project)
+    {
+        if ($project->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'keywords' => 'required|array|min:1',
+            'keywords.*.keyword' => 'required|string',
+            'keywords.*.search_volume' => 'nullable|integer',
+            'keywords.*.difficulty' => 'nullable|integer',
+        ]);
+
+        // Get existing keywords to deduplicate
+        $existingKeywords = $project->keywords()
+            ->pluck('keyword')
+            ->map(fn ($k) => strtolower($k))
+            ->toArray();
+
+        $keywordsAdded = 0;
+
+        foreach ($validated['keywords'] as $kw) {
+            $keywordLower = strtolower($kw['keyword']);
+
+            // Skip if already exists
+            if (in_array($keywordLower, $existingKeywords)) {
+                continue;
+            }
+
+            // Add as a new cluster
+            $project->keywords()->create([
+                'keyword' => $kw['keyword'],
+                'search_volume' => $kw['search_volume'] ?? null,
+                'difficulty' => $kw['difficulty'] ?? null,
+            ]);
+
+            $existingKeywords[] = $keywordLower;
+            $keywordsAdded++;
+        }
+
+        return response()->json([
+            'keywords_added' => $keywordsAdded,
+            'message' => "Added {$keywordsAdded} keywords to your topical map",
+        ]);
+    }
 }

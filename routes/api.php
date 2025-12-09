@@ -27,6 +27,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('projects/{project}/ideas', [TopicalMapController::class, 'ideas']);
     Route::post('projects/{project}/clusters/{cluster}/suggestions', [TopicalMapController::class, 'clusterSuggestions']);
 
+    // Keyword Explorer endpoints
+    Route::post('projects/{project}/explore', [TopicalMapController::class, 'explore']);
+    Route::post('projects/{project}/add-keywords', [TopicalMapController::class, 'addKeywords']);
+
     // Admin-only routes
     Route::middleware('admin')->group(function () {
         // User routes

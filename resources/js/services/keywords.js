@@ -37,6 +37,28 @@ const keywords = {
     async getClusterSuggestions(projectId, clusterId) {
         return await api.post(`/projects/${projectId}/clusters/${clusterId}/suggestions`)
     },
+
+    /**
+     * Explore keywords without saving them (for preview).
+     * @param {string} query - Search query (comma-separated for ideas)
+     * @param {string} source - 'ideas' or 'suggestions'
+     */
+    async explore(projectId, query, source) {
+        return await api.post(`/projects/${projectId}/explore`, {
+            query: query,
+            source: source,
+        })
+    },
+
+    /**
+     * Add selected keywords to the project.
+     * @param {Array} keywords - Array of keyword objects with keyword, search_volume, difficulty
+     */
+    async addKeywords(projectId, keywords) {
+        return await api.post(`/projects/${projectId}/add-keywords`, {
+            keywords: keywords,
+        })
+    },
 }
 
 export default keywords

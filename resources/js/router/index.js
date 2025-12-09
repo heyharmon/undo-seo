@@ -10,6 +10,7 @@ import ProjectsIndex from '@/pages/projects/ProjectsIndex.vue'
 import ProjectCreate from '@/pages/projects/ProjectCreate.vue'
 import ProjectShow from '@/pages/projects/ProjectShow.vue'
 import ProjectEdit from '@/pages/projects/ProjectEdit.vue'
+import KeywordExplorer from '@/pages/projects/KeywordExplorer.vue'
 
 const routes = [
     {
@@ -57,6 +58,12 @@ const routes = [
         path: '/projects/:id/edit',
         name: 'projects.edit',
         component: ProjectEdit,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/projects/:id/explore',
+        name: 'projects.explore',
+        component: KeywordExplorer,
         meta: { requiresAuth: true }
     },
     {

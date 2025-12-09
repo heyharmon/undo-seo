@@ -141,6 +141,10 @@ const goToEdit = () => {
     router.push({ name: 'projects.edit', params: { id: route.params.id } })
 }
 
+const goToExplorer = () => {
+    router.push({ name: 'projects.explore', params: { id: route.params.id } })
+}
+
 onMounted(() => {
     fetchProject()
 })
@@ -240,8 +244,14 @@ onMounted(() => {
                 <span v-if="mapData?.seed" class="rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">{{ mapData.seed }}</span>
             </div>
 
-            <div class="flex items-center gap-4 text-xs text-neutral-500">
-                <span>{{ mapData?.cluster_count || 0 }} clusters • {{ mapData?.total_keywords || 0 }} keywords</span>
+            <!-- Tab Navigation -->
+            <div class="flex items-center gap-1 rounded-lg bg-neutral-100 p-0.5">
+                <button class="rounded-md bg-white px-3 py-1 text-xs font-medium text-neutral-900 shadow-sm">
+                    Topical Map
+                </button>
+                <button @click="goToExplorer" class="rounded-md px-3 py-1 text-xs font-medium text-neutral-600 hover:text-neutral-900">
+                    Explorer
+                </button>
             </div>
 
             <div class="flex items-center gap-2">

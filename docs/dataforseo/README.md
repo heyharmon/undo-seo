@@ -25,22 +25,28 @@ Returns search queries that *include* the seed keyword. These are long-tail vari
 
 Returns semantically related keywords based on product/service categories. These are *conceptually* related keywords that may not contain the exact seed phrase.
 
-**Example:** For "keto diet" you might get:
+**Accepts:** One or more keywords (comma-separated)
+
+**Example:** For "keto diet, weight loss" you might get:
 - low carb recipes
 - intermittent fasting
 - macro calculator
 - carb cycling
+- calorie deficit
 
-**Usage in app:** Called via "Get Ideas" button to add semantically related clusters after the initial map is generated.
+**Usage in app:**
+- Can be selected when generating a new topical map
+- Called via "Get Ideas" button to add semantically related clusters
 
 ## Data Flow
 
 ```
-1. User enters seed keyword → Keyword Suggestions API → Creates topical map
-2. User clicks "Get Suggestions" → More long-tail variations added
-3. User clicks "Get Ideas" → Semantically related topics added
-4. User expands a cluster → Keyword Suggestions API → Adds children
-5. (Future) AI reorganizes clusters semantically
+1. User selects source (Suggestions or Ideas) and enters seed keyword(s)
+2. Selected API → Creates topical map (each keyword = cluster)
+3. User clicks "Get Suggestions" → More long-tail variations added
+4. User clicks "Get Ideas" → Semantically related topics added
+5. User expands a cluster → Keyword Suggestions API → Adds children
+6. (Future) AI reorganizes clusters semantically
 ```
 
 ## Service Class
@@ -49,10 +55,12 @@ Returns semantically related keywords based on product/service categories. These
 
 | Method | Purpose |
 |--------|---------|
-| `generateTopicalMap($seedKeyword, $limit)` | Generate topical map using Suggestions API |
-| `getKeywordSuggestions($keyword, $limit)` | Fetch long-tail variations |
-| `getKeywordIdeas($keyword, $limit)` | Fetch semantically related keywords |
+| `generateTopicalMap($seeds, $source, $limit)` | Generate topical map using selected API |
+| `getKeywordSuggestions($keyword, $limit)` | Fetch long-tail variations (single keyword) |
+| `getKeywordIdeas($keywords, $limit)` | Fetch semantically related keywords (array) |
 | `getDifficultyLabel($difficulty)` | Convert difficulty score to label |
+
+The `$source` parameter accepts `'suggestions'` (default) or `'ideas'`.
 
 ## Response Data
 

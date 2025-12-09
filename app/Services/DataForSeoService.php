@@ -67,12 +67,15 @@ class DataForSeoService
 
     /**
      * Get keyword ideas - semantically related keywords based on category/relevance.
-     * Used for initial topical map generation to get broad semantic coverage.
+     * Accepts one or more seed keywords.
+     *
+     * @param array $keywords Array of seed keywords
+     * @param int $limit Max results to return
      */
-    public function getKeywordIdeas(string $keyword, int $limit = 100): array
+    public function getKeywordIdeas(array $keywords, int $limit = 100): array
     {
         $response = $this->request('/dataforseo_labs/google/keyword_ideas/live', [[
-            'keywords' => [$keyword],
+            'keywords' => $keywords,
             'location_code' => 2840, // US
             'language_code' => 'en',
             'limit' => $limit,
@@ -99,25 +102,25 @@ class DataForSeoService
     }
 
     /**
-     * Generate a complete topical map from a seed keyword.
+     * Generate a complete topical map from seed keyword(s).
      * Each keyword becomes its own cluster (flat structure).
      *
-     * @param string $seedKeyword The seed keyword
+     * @param string|array $seedKeywords Single keyword (suggestions) or array of keywords (ideas)
      * @param string $source Which API to use: 'ideas' or 'suggestions'
      * @param int $limit Number of keywords to fetch
      */
-    public function generateTopicalMap(string $seedKeyword, string $source = 'suggestions', int $limit = 100): array
+    public function generateTopicalMap(string|array $seedKeywords, string $source = 'suggestions', int $limit = 100): array
     {
         Log::info('=== TOPICAL MAP GENERATION START ===', [
-            'seed_keyword' => $seedKeyword,
+            'seed_keywords' => $seedKeywords,
             'source' => $source,
             'limit' => $limit,
         ]);
 
         // Fetch keywords from selected source
         $keywords = $source === 'ideas'
-            ? $this->getKeywordIdeas($seedKeyword, $limit)
-            : $this->getKeywordSuggestions($seedKeyword, $limit);
+            ? $this->getKeywordIdeas((array) $seedKeywords, $limit)
+            : $this->getKeywordSuggestions(is_array($seedKeywords) ? $seedKeywords[0] : $seedKeywords, $limit);
 
         Log::info('Keywords fetched', ['source' => $source, 'count' => count($keywords)]);
 

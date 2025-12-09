@@ -24,23 +24,35 @@ class TopicalMapController extends Controller
         }
 
         $validated = $request->validate([
-            'seed_keyword' => 'required|string|max:255',
+            'seed_keyword' => 'required|string|max:500',
             'source' => 'in:ideas,suggestions',
         ]);
 
         $source = $validated['source'] ?? 'suggestions';
+        $seedInput = $validated['seed_keyword'];
+
+        // For Ideas API, parse comma-separated keywords
+        // For Suggestions API, use the single keyword
+        if ($source === 'ideas') {
+            $seedKeywords = array_map('trim', explode(',', $seedInput));
+            $seedKeywords = array_filter($seedKeywords); // Remove empty values
+            $primarySeed = $seedKeywords[0] ?? $seedInput;
+        } else {
+            $seedKeywords = $seedInput;
+            $primarySeed = $seedInput;
+        }
 
         // Clear existing keywords
         $project->keywords()->delete();
 
-        // Create seed keyword record
+        // Create seed keyword record (store the primary/first keyword)
         $project->keywords()->create([
-            'keyword' => $validated['seed_keyword'],
+            'keyword' => $primarySeed,
             'is_seed' => true,
         ]);
 
         // Generate topical map via DataForSEO service
-        $result = $this->dataForSeo->generateTopicalMap($validated['seed_keyword'], $source);
+        $result = $this->dataForSeo->generateTopicalMap($seedKeywords, $source);
 
         $clusters = $result['clusters'];
 
@@ -268,7 +280,7 @@ class TopicalMapController extends Controller
             ->toArray();
 
         // Fetch ideas from DataForSEO (semantically related keywords)
-        $ideas = $this->dataForSeo->getKeywordIdeas($seed->keyword);
+        $ideas = $this->dataForSeo->getKeywordIdeas([$seed->keyword]);
 
         $keywordsAdded = 0;
         $newClusters = 0;

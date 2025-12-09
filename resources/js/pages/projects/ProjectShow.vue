@@ -37,6 +37,19 @@ const hasTopicalMap = computed(() => {
     return mapData.value && mapData.value.clusters && mapData.value.clusters.length > 0
 })
 
+// Dynamic placeholder and label based on selected source
+const seedInputPlaceholder = computed(() => {
+    return keywordSource.value === 'ideas'
+        ? 'e.g., keto diet, weight loss, healthy eating'
+        : 'e.g., keto diet'
+})
+
+const seedInputLabel = computed(() => {
+    return keywordSource.value === 'ideas'
+        ? 'Seed Keywords'
+        : 'Seed Keyword'
+})
+
 const fetchProject = async () => {
     loading.value = true
     error.value = null
@@ -175,11 +188,6 @@ onMounted(() => {
                         {{ generateError }}
                     </div>
 
-                    <div>
-                        <label for="seed" class="block text-sm font-medium text-neutral-700">Seed Keyword</label>
-                        <Input id="seed" v-model="seedKeyword" type="text" placeholder="e.g., keto diet, dog training" class="mt-1.5" />
-                    </div>
-
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-neutral-700">Keyword Source</label>
                         <div class="space-y-2">
@@ -187,17 +195,22 @@ onMounted(() => {
                                 <input v-model="keywordSource" type="radio" value="suggestions" class="mt-0.5 h-4 w-4 border-neutral-300 text-neutral-900 focus:ring-neutral-500" />
                                 <div>
                                     <span class="text-sm font-medium text-neutral-900">Keyword Suggestions</span>
-                                    <p class="mt-0.5 text-xs text-neutral-500">Long-tail variations containing your keyword</p>
+                                    <p class="mt-0.5 text-xs text-neutral-500">Long-tail variations containing your keyword (one keyword)</p>
                                 </div>
                             </label>
                             <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-3 transition hover:border-neutral-300" :class="{ 'border-neutral-900 bg-neutral-50': keywordSource === 'ideas' }">
                                 <input v-model="keywordSource" type="radio" value="ideas" class="mt-0.5 h-4 w-4 border-neutral-300 text-neutral-900 focus:ring-neutral-500" />
                                 <div>
                                     <span class="text-sm font-medium text-neutral-900">Keyword Ideas</span>
-                                    <p class="mt-0.5 text-xs text-neutral-500">Semantically related topics (broader coverage)</p>
+                                    <p class="mt-0.5 text-xs text-neutral-500">Semantically related topics (one or more keywords, comma-separated)</p>
                                 </div>
                             </label>
                         </div>
+                    </div>
+
+                    <div>
+                        <label for="seed" class="block text-sm font-medium text-neutral-700">{{ seedInputLabel }}</label>
+                        <Input id="seed" v-model="seedKeyword" type="text" :placeholder="seedInputPlaceholder" class="mt-1.5" />
                     </div>
 
                     <Button type="submit" class="w-full" :disabled="generating">

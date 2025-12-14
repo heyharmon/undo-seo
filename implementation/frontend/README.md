@@ -78,6 +78,7 @@ Build a keyword cluster management interface with a nested tree table, drag-and-
 7. **Move**: Drag to different parent → PATCH move endpoint
 
 ### UI Notes
+- IMPORTANT: Follow the same ui aesthetic already established by this apps frontend: clean, minimal, inspired by Shadcn ui and Stripe.com saas design principles of compact and clear UI.
 - Indent nested rows (16-24px per level)
 - Collapse arrows only show when keyword has children
 - Status colors: Active (green), Draft (gray), Planned (blue)

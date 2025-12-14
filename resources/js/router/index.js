@@ -6,6 +6,8 @@ import Register from '@/pages/auth/Register.vue'
 import UsersIndex from '@/pages/users/UsersIndex.vue'
 import UserShow from '@/pages/users/UserShow.vue'
 import Dashboard from '@/pages/dashboard/Dashboard.vue'
+import ProjectsIndex from '@/pages/projects/ProjectsIndex.vue'
+import KeywordClusters from '@/pages/projects/KeywordClusters.vue'
 
 const routes = [
     {
@@ -13,7 +15,7 @@ const routes = [
         name: 'landing',
         component: Landing
     },
-  {
+    {
         path: '/admin',
         name: 'dashboard',
         component: Dashboard,
@@ -30,6 +32,18 @@ const routes = [
         name: 'register',
         component: Register,
         meta: { guest: true }
+    },
+    {
+        path: '/projects',
+        name: 'projects.index',
+        component: ProjectsIndex,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/projects/:id/keywords',
+        name: 'projects.keywords',
+        component: KeywordClusters,
+        meta: { requiresAuth: true }
     },
     {
         path: '/users',

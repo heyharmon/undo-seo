@@ -84,7 +84,9 @@ const toggleMobileAdmin = () => {
                     <router-link v-if="isAdmin" :to="{ name: 'dashboard' }" :class="[navLinkClasses, { [activeNavClasses]: isRouteActive('dashboard') }]">
                         Dashboard
                     </router-link>
-
+                    <router-link :to="{ name: 'projects.index' }" :class="[navLinkClasses, { [activeNavClasses]: isRouteActive('projects.index') || route.path.startsWith('/projects') }]">
+                        Projects
+                    </router-link>
                 </div>
                 <button
                     v-if="isAuthenticated"
@@ -183,6 +185,16 @@ const toggleMobileAdmin = () => {
                                 @click="closeMobileMenu"
                             >
                                 Dashboard
+                            </router-link>
+                            <router-link
+                                :to="{ name: 'projects.index' }"
+                                :class="[
+                                    'block rounded-xl px-3 py-2 transition hover:bg-neutral-100 hover:text-neutral-900',
+                                    { 'bg-neutral-900 text-white hover:bg-neutral-900 hover:text-white': isRouteActive('projects.index') || route.path.startsWith('/projects') }
+                                ]"
+                                @click="closeMobileMenu"
+                            >
+                                Projects
                             </router-link>
                         </div>
 

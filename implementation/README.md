@@ -1,6 +1,6 @@
 # SEO Keyword Cluster Manager
 
-## Summary
+## Core Experience
 
 A lightweight tool for SEO professionals to organize keyword research into hierarchical topical maps. Users create projects, then build nested keyword clusters that represent content strategies—pillar pages at the top level with supporting subtopics and long-tail keywords nested beneath them.
 
